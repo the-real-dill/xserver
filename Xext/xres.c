@@ -184,19 +184,15 @@ ProcXResQueryVersion(ClientPtr client)
     REQUEST_SIZE_MATCH(xXResQueryVersionReq);
 
     xXResQueryVersionReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .server_major = SERVER_XRES_MAJOR_VERSION,
         .server_minor = SERVER_XRES_MINOR_VERSION
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swaps(&rep.server_major);
         swaps(&rep.server_minor);
     }
-    WriteToClient(client, sizeof(xXResQueryVersionReply), &rep);
+    X_SEND_REPLY_SIMPLE(client, rep);
     return Success;
 }
 
@@ -205,56 +201,28 @@ ProcXResQueryClients(ClientPtr client)
 {
     REQUEST_SIZE_MATCH(xXResQueryClientsReq);
 
-    int *current_clients = calloc(currentMaxClients, sizeof(int));
-    if (!current_clients)
-        return BadAlloc;
+    x_rpcbuf_t rpcbuf = { .swapped = client->swapped, .err_clear = TRUE };
 
     int num_clients = 0;
     for (int i = 0; i < currentMaxClients; i++) {
-        if (clients[i]) {
-            if (XaceHookClientAccess(client, clients[i], DixReadAccess) == Success) {
-                current_clients[num_clients] = i;
-                num_clients++;
-            }
+        ClientPtr walkClient = clients[i];
+        if (walkClient &&
+            (XaceHookClientAccess(client, walkClient, DixReadAccess) == Success)) {
+            x_rpcbuf_write_CARD32(&rpcbuf, walkClient->clientAsMask); /* resource_base */
+            x_rpcbuf_write_CARD32(&rpcbuf, RESOURCE_ID_MASK);         /* resource_mask */
+            num_clients++;
         }
     }
 
     xXResQueryClientsReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
-        .length = bytes_to_int32(num_clients * sz_xXResClient),
         .num_clients = num_clients
     };
+
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swapl(&rep.num_clients);
     }
 
-    xXResClient *scratch = NULL;
-
-    if (num_clients) {
-        scratch = calloc(sizeof(xXResClient), num_clients);
-        if (!scratch) {
-            free(current_clients);
-            return BadAlloc;
-        }
-
-        for (int i = 0; i < num_clients; i++) {
-            scratch[i].resource_base = clients[current_clients[i]]->clientAsMask;
-            scratch[i].resource_mask = RESOURCE_ID_MASK;
-
-            if (client->swapped) {
-                swapl(&scratch[i].resource_base);
-                swapl(&scratch[i].resource_mask);
-            }
-        }
-    }
-
-    WriteToClient(client, sizeof(xXResQueryClientsReply), &rep);
-    WriteToClient(client, sizeof(xXResClient) * num_clients, scratch);
-    free(current_clients);
-    free(scratch);
+    X_SEND_REPLY_WITH_RPCBUF(client, rep, rpcbuf);
     return Success;
 }
 
@@ -377,21 +345,16 @@ ProcXResQueryClientPixmapBytes(ClientPtr client)
                            (void *) (&bytes));
 
     xXResQueryClientPixmapBytesReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .bytes = bytes,
 #ifdef _XSERVER64
         .bytes_overflow = bytes >> 32
 #endif
     };
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swapl(&rep.bytes);
         swapl(&rep.bytes_overflow);
     }
-    WriteToClient(client, sizeof(xXResQueryClientPixmapBytesReply), &rep);
-
+    X_SEND_REPLY_SIMPLE(client, rep);
     return Success;
 }
 

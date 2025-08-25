@@ -547,14 +547,8 @@ ProcGetProperty(ClientPtr client)
 
     rc = dixLookupProperty(&pProp, pWin, p.property, p.client, prop_mode);
     if (rc == BadMatch) {
-        xGetPropertyReply rep = {
-            .type = X_Reply,
-            .sequenceNumber = client->sequence,
-        };
-        if (client->swapped) {
-            swaps(&rep.sequenceNumber);
-        }
-        WriteToClient(client, sizeof(rep), &rep);
+        xGetPropertyReply rep = { 0 };
+        X_SEND_REPLY_SIMPLE(client, rep);
         return Success;
     }
     else if (rc != Success)
@@ -565,18 +559,15 @@ ProcGetProperty(ClientPtr client)
 
     if (((p.type != pProp->type) && (p.type != AnyPropertyType))) {
         xGetPropertyReply rep = {
-            .type = X_Reply,
-            .sequenceNumber = client->sequence,
             .bytesAfter = pProp->size,
             .format = pProp->format,
             .propertyType = pProp->type
         };
         if (client->swapped) {
-            swaps(&rep.sequenceNumber);
             swapl(&rep.propertyType);
             swapl(&rep.bytesAfter);
         }
-        WriteToClient(client, sizeof(rep), &rep);
+        X_SEND_REPLY_SIMPLE(client, rep);
         return Success;
     }
 
@@ -597,11 +588,8 @@ ProcGetProperty(ClientPtr client)
     len = min(n - ind, 4 * p.longLength);
 
     xGetPropertyReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .bytesAfter = n - (ind + len),
         .format = pProp->format,
-        .length = bytes_to_int32(len),
         .nItems = len / (pProp->format / 8),
         .propertyType = pProp->type
     };
@@ -649,15 +637,12 @@ ProcGetProperty(ClientPtr client)
     }
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swapl(&rep.propertyType);
         swapl(&rep.bytesAfter);
         swapl(&rep.nItems);
     }
 
-    WriteToClient(client, sizeof(rep), &rep);
-    WriteRpcbufToClient(client, &rpcbuf);
+    X_SEND_REPLY_WITH_RPCBUF(client, rep, rpcbuf);
     return Success;
 }
 
@@ -689,20 +674,14 @@ ProcListProperties(ClientPtr client)
         return BadAlloc;
 
     xListPropertiesReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
-        .length = x_rpcbuf_wsize_units(&rpcbuf),
         .nProperties = numProps
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swaps(&rep.nProperties);
     }
 
-    WriteToClient(client, sizeof(rep), &rep);
-    WriteRpcbufToClient(client, &rpcbuf);
+    X_SEND_REPLY_WITH_RPCBUF(client, rep, rpcbuf);
     return Success;
 }
 

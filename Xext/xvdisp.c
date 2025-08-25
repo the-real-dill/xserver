@@ -62,21 +62,16 @@ ProcXvQueryExtension(ClientPtr client)
     REQUEST_SIZE_MATCH(xvQueryExtensionReq);
 
     xvQueryExtensionReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
-        .length = 0,
         .version = XvVersion,
         .revision = XvRevision
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swaps(&rep.version);
         swaps(&rep.revision);
     }
 
-    WriteToClient(client, sizeof(rep), &rep);
+    X_SEND_REPLY_SIMPLE(client, rep);
     return Success;
 }
 
@@ -133,20 +128,14 @@ ProcXvQueryAdaptors(ClientPtr client)
     }
 
     xvQueryAdaptorsReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .num_adaptors = numAdaptors,
-        .length = bytes_to_int32(rpcbuf.wpos)
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swaps(&rep.num_adaptors);
     }
 
-    WriteToClient(client, sizeof(rep), &rep);
-    WriteRpcbufToClient(client, &rpcbuf);
+    X_SEND_REPLY_WITH_RPCBUF(client, rep, rpcbuf);
     return Success;
 }
 
@@ -181,20 +170,14 @@ ProcXvQueryEncodings(ClientPtr client)
         return BadAlloc;
 
     xvQueryEncodingsReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .num_encodings = pPort->pAdaptor->nEncodings,
-        .length = bytes_to_int32(rpcbuf.wpos),
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swaps(&rep.num_encodings);
     }
 
-    WriteToClient(client, sizeof(rep), &rep);
-    WriteRpcbufToClient(client, &rpcbuf);
+    X_SEND_REPLY_WITH_RPCBUF(client, rep, rpcbuf);
     return Success;
 }
 
@@ -389,18 +372,10 @@ ProcXvGrabPort(ClientPtr client)
         return status;
     }
     xvGrabPortReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .result = result
     };
 
-    if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
-    }
-
-    WriteToClient(client, sz_xvGrabPortReply, &rep);
-
+    X_SEND_REPLY_SIMPLE(client, rep);
     return Success;
 }
 
@@ -511,18 +486,14 @@ ProcXvGetPortAttribute(ClientPtr client)
     }
 
     xvGetPortAttributeReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .value = value
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swapl(&rep.value);
     }
 
-    WriteToClient(client, sz_xvGetPortAttributeReply, &rep);
+    X_SEND_REPLY_SIMPLE(client, rep);
     return Success;
 }
 
@@ -543,20 +514,16 @@ ProcXvQueryBestSize(ClientPtr client)
                                          &actual_width, &actual_height);
 
     xvQueryBestSizeReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .actual_width = actual_width,
         .actual_height = actual_height
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swaps(&rep.actual_width);
         swaps(&rep.actual_height);
     }
 
-    WriteToClient(client, sz_xvQueryBestSizeReply, &rep);
+    X_SEND_REPLY_SIMPLE(client, rep);
     return Success;
 }
 
@@ -589,22 +556,16 @@ ProcXvQueryPortAttributes(ClientPtr client)
         return BadAlloc;
 
     xvQueryPortAttributesReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .num_attributes = pPort->pAdaptor->nAttributes,
-        .length = bytes_to_int32(rpcbuf.wpos),
         .text_size = textSize,
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swapl(&rep.num_attributes);
         swapl(&rep.text_size);
     }
 
-    WriteToClient(client, sizeof(rep), &rep);
-    WriteRpcbufToClient(client, &rpcbuf);
+    X_SEND_REPLY_WITH_RPCBUF(client, rep, rpcbuf);
     return Success;
 }
 
@@ -825,9 +786,6 @@ ProcXvQueryImageAttributes(ClientPtr client)
                                                        pitches);
 
     xvQueryImageAttributesReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
-        .length = bytes_to_int32(rpcbuf.wpos), /* in 32bit units */
         .num_planes = num_planes,
         .width = width,
         .height = height,
@@ -835,17 +793,16 @@ ProcXvQueryImageAttributes(ClientPtr client)
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swapl(&rep.num_planes);
         swapl(&rep.data_size);
         swaps(&rep.width);
         swaps(&rep.height);
-        SwapLongs((CARD32 *) offsets, rep.length);
+        /* needed here, because ddQueryImageAttributes() directly wrote into
+           our rpcbuf area */
+        SwapLongs((CARD32 *) offsets, x_rpcbuf_wsize_units(&rpcbuf));
     }
 
-    WriteToClient(client, sz_xvQueryImageAttributesReply, &rep);
-    WriteRpcbufToClient(client, &rpcbuf);
+    X_SEND_REPLY_WITH_RPCBUF(client, rep, rpcbuf);
     return Success;
 }
 
@@ -904,25 +861,20 @@ ProcXvListImageFormats(ClientPtr client)
     if (rpcbuf.error)
         return BadAlloc;
 
+    /* use rpc.wpos here, in order to get how much we've really written */
     if (rpcbuf.wpos != (pPort->pAdaptor->nImages*sz_xvImageFormatInfo))
         LogMessage(X_WARNING, "ProcXvListImageFormats() payload_len mismatch: %ld but shoud be %d\n",
                    rpcbuf.wpos, (pPort->pAdaptor->nImages*sz_xvImageFormatInfo));
 
     xvListImageFormatsReply rep = {
-        .type = X_Reply,
-        .sequenceNumber = client->sequence,
         .num_formats = pPort->pAdaptor->nImages,
-        .length = bytes_to_int32(rpcbuf.wpos)
     };
 
     if (client->swapped) {
-        swaps(&rep.sequenceNumber);
-        swapl(&rep.length);
         swapl(&rep.num_formats);
     }
 
-    WriteToClient(client, sz_xvListImageFormatsReply, &rep);
-    WriteRpcbufToClient(client, &rpcbuf);
+    X_SEND_REPLY_WITH_RPCBUF(client, rep, rpcbuf);
     return Success;
 }
 
@@ -1379,6 +1331,7 @@ XineramaXvShmPutImage(ClientPtr client)
     y = stuff->drw_y;
 
     FOR_NSCREENS_BACKWARD(i) {
+        ScreenPtr walkScreen = screenInfo.screens[i];
         if (port->info[i].id) {
             stuff->drawable = draw->info[i].id;
             stuff->port = port->info[i].id;
@@ -1386,8 +1339,8 @@ XineramaXvShmPutImage(ClientPtr client)
             stuff->drw_x = x;
             stuff->drw_y = y;
             if (isRoot) {
-                stuff->drw_x -= screenInfo.screens[i]->x;
-                stuff->drw_y -= screenInfo.screens[i]->y;
+                stuff->drw_x -= walkScreen->x;
+                stuff->drw_y -= walkScreen->y;
             }
             stuff->send_event = (send_event && !i) ? 1 : 0;
 
@@ -1431,6 +1384,7 @@ XineramaXvPutImage(ClientPtr client)
     y = stuff->drw_y;
 
     FOR_NSCREENS_BACKWARD(i) {
+        ScreenPtr walkScreen = screenInfo.screens[i];
         if (port->info[i].id) {
             stuff->drawable = draw->info[i].id;
             stuff->port = port->info[i].id;
@@ -1438,8 +1392,8 @@ XineramaXvPutImage(ClientPtr client)
             stuff->drw_x = x;
             stuff->drw_y = y;
             if (isRoot) {
-                stuff->drw_x -= screenInfo.screens[i]->x;
-                stuff->drw_y -= screenInfo.screens[i]->y;
+                stuff->drw_x -= walkScreen->x;
+                stuff->drw_y -= walkScreen->y;
             }
 
             result = SingleXvPutImage(client);
@@ -1479,6 +1433,7 @@ XineramaXvPutVideo(ClientPtr client)
     y = stuff->drw_y;
 
     FOR_NSCREENS_BACKWARD(i) {
+        ScreenPtr walkScreen = screenInfo.screens[i];
         if (port->info[i].id) {
             stuff->drawable = draw->info[i].id;
             stuff->port = port->info[i].id;
@@ -1486,8 +1441,8 @@ XineramaXvPutVideo(ClientPtr client)
             stuff->drw_x = x;
             stuff->drw_y = y;
             if (isRoot) {
-                stuff->drw_x -= screenInfo.screens[i]->x;
-                stuff->drw_y -= screenInfo.screens[i]->y;
+                stuff->drw_x -= walkScreen->x;
+                stuff->drw_y -= walkScreen->y;
             }
 
             result = SingleXvPutVideo(client);
@@ -1527,6 +1482,7 @@ XineramaXvPutStill(ClientPtr client)
     y = stuff->drw_y;
 
     FOR_NSCREENS_BACKWARD(i) {
+        ScreenPtr walkScreen = screenInfo.screens[i];
         if (port->info[i].id) {
             stuff->drawable = draw->info[i].id;
             stuff->port = port->info[i].id;
@@ -1534,8 +1490,8 @@ XineramaXvPutStill(ClientPtr client)
             stuff->drw_x = x;
             stuff->drw_y = y;
             if (isRoot) {
-                stuff->drw_x -= screenInfo.screens[i]->x;
-                stuff->drw_y -= screenInfo.screens[i]->y;
+                stuff->drw_x -= walkScreen->x;
+                stuff->drw_y -= walkScreen->y;
             }
 
             result = SingleXvPutStill(client);
@@ -1625,10 +1581,11 @@ XineramifyXv(void)
         MatchingAdaptors[0] = refAdapt;
         isOverlay = hasOverlay(refAdapt);
         FOR_NSCREENS_FORWARD(j) {
+            ScreenPtr walkScreen = screenInfo.screens[j];
             if (!j)
                 continue; /* skip screen #0 */
             MatchingAdaptors[j] =
-            matchAdaptor(screenInfo.screens[j], refAdapt, isOverlay);
+            matchAdaptor(walkScreen, refAdapt, isOverlay);
         }
 
         /* now create a resource for each port */
