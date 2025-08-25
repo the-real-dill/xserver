@@ -14,20 +14,20 @@ The codebase is organized into:
 The Meson build system orchestrates compilation, handling dependencies,
 conditional builds, and configuration options.
 
-#### Key Principles of the Codebase
+## Key Principles of the Codebase
 
-- **Modularity**: Code is split into libraries (e.g., `libxserver_*`) that are
-  linked into different server binaries (`Xorg`, `Xnest`, `Xquartz`, etc.).
+**Modularity**: Code is split into libraries (e.g., `libxserver_*`) that are
+linked into different server binaries (`Xorg`, `Xnest`, `Xquartz`, etc.).
 
-- **Platform Independence**: Device Independent X (DIX) and Machine Independent
-  (MI) layers abstract hardware and OS differences.
+**Platform Independence**: Device Independent X (DIX) and Machine Independent
+(MI) layers abstract hardware and OS differences.
 
-- **Extensions**: Many features (e.g., `RandR`, `Composite`) are implemented as
-  loadable extensions. These can depend on one another, and many rely on
-  `Render` (render/) for drawing.
+**Extensions**: Many features (e.g., `RandR`, `Composite`) are implemented as
+loadable extensions. These can depend on one another, and many rely on
+`Render` (render/) for drawing.
 
-- **Build Flexibility**: Meson options allow enabling/disabling features,
-  servers, and extensions, with auto-detection for many.
+**Build Flexibility**: Meson options allow enabling/disabling features, servers,
+and extensions, with auto-detection for many.
 
 ## Diagram of XLibre
 
@@ -104,14 +104,14 @@ explanation.
 
 ### Core
 
-- **config/**: Server configuration handling
+- **config/**: Server configuration handling  
     Manages server configuration parsing and hotplugging, including input
     devices, monitors, and modules via files like `config.c` and `udev.c`. It
     interconnects with the input extensions (e.g., Xi/ for device detection)
     and OS layer (os/ for platform-specific I/O), relying on optional
     dependencies like libudev for dynamic device handling on Linux.
 
-- **dix/**: Device Independent X (DIX) - Core server logic
+- **dix/**: Device Independent X (DIX) - Core server logic  
     Orchestrates protocol dispatching, event handling, resource management,
     and window operations through files like `dispatch.c` and `main.c`. It
     serves as the central hub, interconnecting with all extensions (which
@@ -120,7 +120,7 @@ explanation.
     Key components include: Request handlers, property system, colormap
     management, etc.
 
-- **hw/**: Device Dependant X (DDX) - Hardware-specific code and servers
+- **hw/**: Device Dependant X (DDX) - Hardware-specific code and servers  
     Hardware-dependent drivers and server variants, including subdirectories
     like `xfree86/` (the main XLibre DDX), `kdrive/` (includes Xephyr),
     `vfb/`, `xnest/`, `xquartz/` (macOS), and `xwin/` (Windows). These link
@@ -130,28 +130,28 @@ explanation.
     repositories and are loaded as modules. There is an ongoing discussion
     about moving these into the core source tree in the future.
 
-- **include/**: Global headers and configuration
+- **include/**: Global headers and configuration  
     Global headers and generated configs (like `dix-config.h`), defining core
     structures (e.g., `dixstruct.h`) and macros (e.g., `misc.h`) used across
     the codebase. This directory interconnects with nearly every component as
     an inclusion base, supporting platform independence by abstracting types
     and configs for DIX, MI, and extensions.
 
-- **fb/**: Framebuffer abstraction
+- **fb/**: Framebuffer abstraction  
     A software framebuffer abstraction that implements generic rendering
     primitives (e.g., `fbpict.c` for pictures) as a fallback when hardware
     acceleration is unavailable. It interconnects closely with the MI layer
     (mi/ for drawing ops) and Render extension (render/ for accelerated
     paths). Depends on pixman for pixel manipulation.
 
-- **mi/**: Machine Independent (MI) - Generic implementations
+- **mi/**: Machine Independent (MI) - Generic implementations  
     The Machine Independent layer offers generic, non-hardware-specific
     implementations for drawing, window management, and graphics contexts
     via files like `miwindow.c` and `migc.c`. It acts as a fallback interconnect
     between DIX (for protocol handling) and FB (for rendering), extended via
     miext/ for specialized MI features like damage tracking.
 
-- **os/**: OS abstraction layer
+- **os/**: OS abstraction layer  
     The OS abstraction layer manages platform-agnostic I/O, sockets, signals,
     timers, and authentication (e.g., `connection.c` and `xdmcp.c` if enabled).
     It interconnects as the foundational bridge for all upper layers, supporting
@@ -160,14 +160,14 @@ explanation.
 
 ### Rendering Acceleration
 
-- **exa/**: EXA acceleration
+- **exa/**: EXA acceleration  
     EXA provides an older framework for 2D hardware acceleration, handling
     operations like rendering and glyphs through e.g., `exa_render.c`. It
     provides a fallback to Glamor. It interconnects with the Render extension
     for primitives. Primarily used in XLibre or Xephyr builds. Depends on
     pixman.
 
-- **glamor/**: Glamor acceleration
+- **glamor/**: Glamor acceleration  
     Enables OpenGL-based 2D acceleration as a modern replacement for EXA, with
     core logic in `glamor_render.c` for efficient drawing and XV support. It
     interconnects with the Render extension for primitives and GLX for OpenGL.
@@ -175,32 +175,32 @@ explanation.
 
 ### Extensions
 
-- **composite/**: Composite extension
+- **composite/**: Composite extension  
     Supports window redirection and compositing effects (e.g., transparency)
     via files like `compwindow.c`. It interconnects with Render (for drawing)
     and Damage (for efficiency).
 
-- **damageext/**: Damage extension
+- **damageext/**: Damage extension  
     Tracks damaged screen regions for optimized redraws, implemented in
     `damageext.c`. It interconnects with miext/damage/ for MI-level tracking
     and Composite for effects. Depends on damageproto.
 
-- **dbe/**: Double Buffer Extension (DBE)
+- **dbe/**: Double Buffer Extension (DBE)  
     Provides double-buffering to minimize flicker in drawing operations, with
     `midbe.c` offering MI support. It interconnects as a simple extension to DIX
     for protocol handling, and optionally integrats with Render for buffered
     primitives.
 
-- **dri3/**: Direct Rendering Infrastructure 3 (DRI3) extension
+- **dri3/**: Direct Rendering Infrastructure 3 (DRI3) extension  
     Facilitates modern buffer sharing for direct rendering, handled in e.g.,
     `dri3_request.c`. It interconnects with GLX for OpenGL and hw/xfree86/dri/
     for hardware. Depends on libdrm and xshmfence.
 
-- **glx/**: OpenGL Extension to X (GLX)
+- **glx/**: OpenGL Extension to X (GLX)  
     Extends X for OpenGL applications, dispatching commands via `glxcmds.c`.
     It interconnects with Glamor/DRI for acceleration and Render for 2D ops.
 
-- **miext/**: MI Extensions
+- **miext/**: MI Extensions  
     Contains Machine Independent extensions for specialized features like:
      - `damage` (MI damage tracking)
      - `rootless` (rootless windowing for Xquartz)
@@ -209,50 +209,50 @@ explanation.
     Interconnects as helpers for core MI (mi/) and extensions like Damage or
     Rootless (for Xquartz)
 
-- **present/**: Present extension
+- **present/**: Present extension  
     Manages vsync and buffer flipping for smooth graphics, via e.g.,
     `present_vblank.c`. It interconnects with DRI for hardware sync and RandR
     for screen ops. A modern alternative to Xv. Depends on presentproto.
 
-- **pseudoramiX/**: PseudoramiX
+- **pseudoramiX/**: PseudoramiX  
     Emulates/Provides multi-monitor support for specific servers, implemented in
     `pseudoramiX.c`. It interconnects with Xwin or Xquartz servers for platform
     multi-head setups, integrating with RandR for compatibility in non-native
     environments.
 
-- **randr/**: Resize and Rotate (RandR) extension
+- **randr/**: Resize and Rotate (RandR) extension  
     RandR handles dynamic screen resizing, rotation, and multi-monitor configs
     via files like `rrtransform.c` and `rrcrtc.c`. It interconnects with
     hw/xfree86/modes/ for hardware modesetting and Render for drawing. Depends
     on randrproto.
 
-- **record/**: Record extension
+- **record/**: Record extension  
     Captures protocol streams for testing or debugging, via `record.c`. It
     interconnects with DIX for request interception. Depends on recordproto.
 
-- **render/**: Render extension
+- **render/**: Render extension  
     Accelerates 2D operations like glyphs and gradients via files like
     `render.c` and `picture.c`. As a central extension, it interconnects with
     Composite/Damage for effects, Glamor/EXA for acceleration, and FB for
     fallback. Depends on pixman.
 
-- **Xext/**: Core X extensions
+- **Xext/**: Core X extensions  
     Bundles core extensions like SHM (`shm.c`), Sync (`sync.c`), BigRequests
     (`bigreq.c`), VidMode (`vidmode.c`), Xinerama (`panoramiX.c`), and others.
     It interconnects broadly with DIX for base protocol enhancements and miext/
     for MI support. In XLibre, namespace/ adds client isolation/containers.
 
-- **xfixes/**: X Fixes extension
+- **xfixes/**: X Fixes extension  
     Protocol fixes and enhancements, like cursor confinement via `cursor.c`.
     It interconnects with XInput for input tweaks and Render for drawing.
     Depends on fixesproto.
 
-- **Xi/**: X Input extension
+- **Xi/**: X Input extension  
     Manages advanced input devices, touch, and gestures, e.g. through
     `xiquerydevice.c`. It interconnects with config/ for hotplugging and
     XKB for keyboard integration.
 
-- **xkb/**: X Keyboard (XKB) extension
+- **xkb/**: X Keyboard (XKB) extension  
     Oversees keyboard layouts, mappings, and actions, e.g. in `xkbActions.c`
     and `xkbEvents.c`. It interconnects with Xi/ for input devices and config/
     for rules loading. Depends on kbproto.
@@ -278,22 +278,37 @@ explanation.
 - **Important Headers**: `include/dix-config.h` (config macros),
   `dix/dispatch.h` (request handlers), `os/osdep.h` (OS funcs).
 
-- **Debugging**: Use `-verbose` server flag. Enable libunwind for
-  better backtraces. Test with Xephyr for isolated testing.
-  Use tools like gdb, valgrind, etc. 
+- **X11 Protocol**: Read the `xorgproto` docs. Core is in DIX,
+  extensions add opcodes.
+
+- **Resources**: Read `doc/` output. Read Xorg docs at
+  (freedesktop.org/wiki/Xorg)[freedesktop.org/wiki/Xorg]. Check GitHub issues
+  and discussions.
 
 - **Modules**: Drivers and extensions load dynamically from
   `module_dir` (default: lib/xorg/modules).
 
-- **X11 Protocol**: Read the `xorgproto` docs. Core is in DIX,
-  extensions add opcodes.
+- **Debugging**: Use `-verbose` and `-logverbose` server flags for detailed
+  output and logging. Enable libunwind for better backtraces. Enable
+  AddressSanitizer in your build. Use tools like gdb, valgrind, perf, etc. 
+  
+  Use Xephyr for isolated testing in a nested X11 window.
+  
+  For debugging on real hardware, you need functional input devices
+  (keyboard/mouse) to interact with the server or switch back to a text console
+  (VT). Input is provided by separate driver modules (e.g., by
+  [xf86-input-libinput](https://github.com/X11Libre/xf86-input-libinput) for
+  modern devices via libinput), which need to be "installed" with your
+  development build.
+  
+  For example, for `xf86-input-libinput` place `libinput_drv.so` in
+  `your_prefix/lib64/xorg/modules/xlibre-25/input` (you can copy this from your
+  main XLibre `usr/lib/` directory as long as it is ABI-compatible) and place
+  `80-libinput.conf` in `your_prefix/share/X11/xorg.conf.d/`.
+  
+  For gdb debugging, it is highly recommended to use SSH from another machine or
+  a serial terminal to avoid input lockup during breakpoints, which prevents
+  local VT switching and could freeze your session.
 
-- **Resources**: Read `doc/` output. Read Xorg docs: freedesktop.org/wiki/Xorg.
-  Check GitHub issues and discussions.
-
-- **Contributing**: Use C99, follow warnings (strict flags).
-  Clean up and improve code. Optimize. Add features. Propose extensions?
-  Port to new platforms. Debug. Close issues. Write documentation.
-
-- **Community Interaction**: Join the Telegram/Matrix chat. Post in the
-  GitHub discussions. Join the mailing list.
+- **Contributing and Community Interaction**: See the `CONTRIBUTING.md` and
+  `README.md` files for additional information.
